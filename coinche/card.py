@@ -19,6 +19,9 @@ non_atout_values = {
 	7: 0
 }
 
+suits = ['♠', '♦', '♥', '♣']
+ranks = list(range(7, 14 + 1))
+
 
 class Card:
 	""" A playing card, with rank and suit.
@@ -27,12 +30,13 @@ class Card:
 	"""
 
 	def __init__(self, rank, suit):
-		if rank not in range(7, 14 + 1):
+		if rank not in ranks:
 			raise Exception("Invalid rank")
-		if suit not in ['♠', '♦', '♥', '♣']:
+		if suit not in suits:
 			raise Exception("Invalid suit")
 		self.rank = rank
 		self.suit = suit
+		self.index = len(ranks) * suits.index(self.suit) + ranks.index(self.rank)
 
 	def value(self, atout):
 		if self.suit == atout:
@@ -41,7 +45,7 @@ class Card:
 			return non_atout_values[self.rank]
 
 	def __repr__(self):
-		return "??23456789XJDRA"[self.rank] + self.suit
+		return "???????789XJDRA"[self.rank] + self.suit
 
 	def __eq__(self, other):
 		return self.rank == other.rank and self.suit == other.suit

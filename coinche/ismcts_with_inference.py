@@ -18,6 +18,27 @@
 from math import *
 import random
 from coinche import Coinche
+from card import Card
+from itertools import combinations
+import numpy as np
+
+
+class Belief:
+	""" A belief distribution.
+	"""
+	def __init__(self, player, state):
+		self.player = player  # the only part of the state that the Node needs later
+		self.belief_distribution = self.initialize_distribution(state.player_hands[player])
+
+	def initialize_distribution(self, player_cards):
+		basic_distrib = np.ones((4, 32))/3
+		basic_distrib[self.player] = 0
+		for card in player_cards:
+			basic_distrib[self.player][card.index] = 1
+			for other_player in range(4):
+				if other_player != self.player:
+					basic_distrib[other_player][card.index] = 0
+		return basic_distrib
 
 
 class Node:
@@ -103,66 +124,70 @@ class Node:
 			s += str(c) + "\n"
 		return s
 
-	def predict_move(self, rootstate, itermax, verbose=False):
-		""" Conduct an ismcts search for itermax iterations starting from rootstate.
-			Return the best move from the rootstate.
-		"""
+	def soft_reset_node(self):
+		self.move = None
+		self.parentNode = None
+		self.child_nodes = []
+		self.wins = 0
+		self.visits = 0
+		self.avails = 1
+		self.player_just_moved = None
 
-		rootnode = self
-		currentnode = 0
 
-		for i in range(itermax):
-			# print(i)
-			node = rootnode
+def ismcts(rootstate, itermax, verbose=False, belief=[]):
+	""" Conduct an ismcts search for itermax iterations starting from rootstate.
+		Return the best move from the rootstate.
+	"""
+	print(belief)
+	rootnode = Node()
 
-			# Determinize
-			state = rootstate.clone_and_randomize(rootstate.player_to_move)
+	for i in range(itermax):
+		node = rootnode
 
-			# Select
-			while state.get_moves() != [] and node.get_untried_moves(
-					state.get_moves()) == []:  # node is fully expanded and non-terminal
-				node = node.ucb_select_child(state.get_moves())
-				# print('select')
-				state.do_move(node.move)
-			# print('000', state.get_moves())
-			# Expand
-			untried_moves = node.get_untried_moves(state.get_moves())
-			if untried_moves:  # if we can expand (i.e. state/node is non-terminal)
-				m = random.choice(untried_moves)
-				player = state.player_to_move
-				# print('untried_moves')
-				state.do_move(m)
-				node = node.add_child(m, player)  # add child and descend tree
+		# Determinize
+		state = rootstate.clone_and_randomize(rootstate.player_to_move)
 
-			# Simulate
-			while state.get_moves():  # while state is non-terminal
-				# print('move simulation')
-				# print(state.current_cards)
-				state.do_move(random.choice(state.get_moves()))
+		# Select
+		while state.get_moves() != [] and node.get_untried_moves(state.get_moves()) == []:
+			# node is fully expanded and non-terminal
+			node = node.ucb_select_child(state.get_moves())
+			state.do_move(node.move)
 
-			# Backpropagate
-			while node is not None:  # backpropagate from the expanded node and work back to the root node
-				node.update(state)
-				node = node.parentNode
+		# Expand
+		untried_moves = node.get_untried_moves(state.get_moves())
+		if untried_moves:  # if we can expand (i.e. state/node is non-terminal)
+			m = random.choice(untried_moves)
+			player = state.player_to_move
+			state.do_move(m)
+			node = node.add_child(m, player)  # add child and descend tree
 
-		# Output some information about the tree - can be omitted
-		if verbose:
-			print(rootnode.tree_to_string(0))
-		else:
-			print(rootnode.children_to_string())
+		# Simulate
+		while state.get_moves():  # while state is non-terminal
+			state.do_move(random.choice(state.get_moves()))
 
-		return max(rootnode.child_nodes, key=lambda c: c.visits).move  # return the move that was most visited
+		# Backpropagate
+		while node is not None:  # backpropagate from the expanded node and work back to the root node
+			node.update(state)
+			node = node.parentNode
+
+	# Output some information about the tree - can be omitted
+	if verbose:
+		print(rootnode.tree_to_string(0))
+	else:
+		print(rootnode.children_to_string())
+
+	return max(rootnode.child_nodes, key=lambda c: c.visits).move  # return the move that was most visited
 
 
 def play_game():
 	""" Play a sample game between four ismcts players.
 	"""
 	state = Coinche(verbose=True)
-	trees = [Node() for _ in range(4)]
+	beliefs = [Belief(i, state) for i in range(4)]
 
 	while state.get_moves():
 		print(state)
-		m = trees[state.player_to_move].predict_move(rootstate=state, itermax=2000, verbose=False)
+		m = ismcts(rootstate=state, itermax=2000, verbose=False, belief=beliefs[state.player_to_move])
 		print("Best Move: " + str(m) + "\n")
 		state.do_move(m)
 

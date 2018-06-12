@@ -73,6 +73,7 @@ class Coinche(GameState):
 		self.scores = [0, 0]
 		self.random_deal()
 		self.verbose = verbose
+		self.move_history = []
 
 	def clone(self):
 		""" Create a deep clone of this game state.
@@ -202,6 +203,8 @@ class Coinche(GameState):
 		# print('new move', move, 'by', self.player_to_move)
 		# Store the played card in the current trick
 		# print(len(self.current_cards))
+		self.moves_history.append(move)
+
 		if len(self.current_cards) < 4:
 			self.current_cards.append((self.player_to_move, move))
 		else:
@@ -295,6 +298,7 @@ class Coinche(GameState):
 			result += "\n | P%i: " % p
 			result += ", ".join(str(card) for card in self.player_hands[p])
 		result += "\n | Current cards: %s" % ", ".join(str(card) for card in self.current_cards)
+		result += "\n | Current cards score: %s" % self.score()
 		result += "\n | Atout: %s" % self.atout
 		result += "\n | Scores: %s" % self.scores
 		result += "\n | Current scores: %s" % self.current_scores
